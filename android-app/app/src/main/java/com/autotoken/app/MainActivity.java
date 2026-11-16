@@ -1,12 +1,21 @@
 package com.autotoken.app;
 
+import android.Manifest;
 import android.app.Activity;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.PowerManager;
+import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -36,8 +45,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class MainActivity extends Activity {
 
@@ -48,11 +55,6 @@ public class MainActivity extends Activity {
     private List<FirebaseUrl> firebaseUrls = new ArrayList<>();
     private String savedToken = "";
     private boolean isRunning = false;
-    private long lastUpdateId = 0;
-
-    // Current extracted data (Telegram)
-    private String currentTargetNumber = "";
-    private String currentMessageBody = "";
 
     // Firebase Search
     private List<Device> allDevices = new ArrayList<>();
@@ -86,6 +88,9 @@ public class MainActivity extends Activity {
     private ImageView navHomeIcon, navSearchIcon, navSettingsIcon;
     private TextView navHomeText, navSearchText, navSettingsText;
 
+    // Receives log lines + running-state from the background service
+    private BroadcastReceiver eventReceiver;
+
     // Data classes
     static class ChatId {
         String id; String nickname; boolean isDefault;
@@ -112,9 +117,51 @@ public class MainActivity extends Activity {
         loadData();
         switchPage("homePage");
 
+        // Service se aane wale log + state receive karo
+        registerEventReceiver();
+        syncRunningState();
+
         // Speed test every 2s + immediately (same as script.js)
         updateNetworkSpeed();
         mainHandler.postDelayed(speedRunnable, 2000);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Agar service chalu/band ho gayi ho (activity band hone ke dauraan), button sync karo
+        syncRunningState();
+    }
+
+    private void registerEventReceiver() {
+        eventReceiver = new BroadcastReceiver() {
+            @Override public void onReceive(Context context, Intent intent) {
+                if (intent == null) return;
+                String kind = intent.getStringExtra(PollingService.EX_KIND);
+                if ("log".equals(kind)) {
+                    String msg = intent.getStringExtra(PollingService.EX_MSG);
+                    String type = intent.getStringExtra(PollingService.EX_TYPE);
+                    if (msg != null) addLog(msg, type != null ? type : "info");
+                } else if ("state".equals(kind)) {
+                    boolean run = intent.getBooleanExtra(PollingService.EX_RUNNING, false);
+                    isRunning = run;
+                    startStopBtn.setText(run ? "STOP" : "START");
+                    startStopBtn.setBackgroundResource(run ? R.drawable.btn_stop : R.drawable.btn_start);
+                }
+            }
+        };
+        IntentFilter filter = new IntentFilter(PollingService.ACTION_EVENT);
+        if (Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(eventReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(eventReceiver, filter);
+        }
+    }
+
+    private void syncRunningState() {
+        isRunning = prefs.getBoolean("isRunning", false);
+        startStopBtn.setText(isRunning ? "STOP" : "START");
+        startStopBtn.setBackgroundResource(isRunning ? R.drawable.btn_stop : R.drawable.btn_start);
     }
 
     private void bindViews() {
@@ -270,6 +317,9 @@ public class MainActivity extends Activity {
     // ==========================================
     private void loadData() {
         savedToken = prefs.getString("telegramToken", "");
+        // Pehle SET kiya hua device yaad rakho (service restart/reopen ke liye)
+        selectedDeviceId = prefs.getString("selectedDeviceId", null);
+        selectedSimIndex = prefs.getString("selectedSimIndex", "0");
         String sc = prefs.getString("chatIds", null);
         String sf = prefs.getString("firebaseUrls", null);
         try {
@@ -545,24 +595,11 @@ public class MainActivity extends Activity {
     }
 
     // ==========================================
-    // TELEGRAM LOGIC (Polling & Extraction)
+    // START / STOP  (background service ko chalata hai)
     // ==========================================
-    private String[] extractData(String rawText) {
-        String target = null;
-        String content = null;
-        Matcher toM = Pattern.compile("To\\s*(?:\\(Tap to copy\\))?\\s*:\\s*([+\\d]+)",
-                Pattern.CASE_INSENSITIVE).matcher(rawText);
-        if (toM.find()) target = toM.group(1).trim();
-
-        Matcher bodyM = Pattern.compile("Body\\s*(?:\\(Tap to copy\\))?\\s*:\\s*([\\s\\S]+)",
-                Pattern.CASE_INSENSITIVE).matcher(rawText);
-        if (bodyM.find()) content = bodyM.group(1).trim();
-
-        return new String[]{ target, content };
-    }
-
     private void toggleStart() {
         ChatId ac = defaultChat();
+        FirebaseUrl af = defaultFirebase();
 
         if (!isRunning) {
             if (TextUtils.isEmpty(savedToken) || ac == null) {
@@ -574,152 +611,70 @@ public class MainActivity extends Activity {
                 return;
             }
 
+            // Notification permission (Android 13+) taaki foreground service chal sake
+            ensureNotificationPermission();
+
             isRunning = true;
+            prefs.edit().putBoolean("isRunning", true).apply();
             startStopBtn.setText("STOP");
             startStopBtn.setBackgroundResource(R.drawable.btn_stop);
 
             addLog("[SYSTEM] Starting Telegram Polling...", "info");
             addLog("[TELEGRAM] Using Chat: " + ac.nickname, "info");
+            addLog("[SYSTEM] Background service ON — minimize/recents se hatane par bhi chalega.", "success");
 
-            startTelegramPolling(ac.id);
+            Intent i = new Intent(this, PollingService.class);
+            i.setAction(PollingService.ACTION_START);
+            i.putExtra("token", savedToken);
+            i.putExtra("chatId", ac.id);
+            i.putExtra("firebaseUrl", af != null ? af.url : "");
+            i.putExtra("deviceId", selectedDeviceId);
+            i.putExtra("simIndex", selectedSimIndex);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(i);
+            else startService(i);
+
+            // OEM battery killers (Xiaomi/Oppo/Vivo etc.) se bachne ke liye ek baar exemption
+            requestBatteryExemptionOnce();
         } else {
-            isRunning = false;
-            startStopBtn.setText("START");
-            startStopBtn.setBackgroundResource(R.drawable.btn_start);
-            addLog("[SYSTEM] Bot Stopped.", "warn");
+            stopPollingService();
         }
     }
 
-    private void startTelegramPolling(final String chatId) {
-        if (!isRunning) return;
-
-        executor.submit(() -> {
-            try {
-                String url = "https://api.telegram.org/bot" + savedToken +
-                        "/getUpdates?offset=" + (lastUpdateId + 1) + "&timeout=15";
-                HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
-                c.setConnectTimeout(10000);
-                c.setReadTimeout(20000);
-                String resp = readBody(c);
-                c.disconnect();
-
-                final JSONObject data = new JSONObject(resp);
-                mainHandler.post(() -> {
-                    try {
-                        handleTelegramResponse(data, chatId);
-                    } catch (Exception e) {
-                        addLog("[NETWORK ERR] Retrying...", "warn");
-                        if (isRunning) mainHandler.postDelayed(() -> startTelegramPolling(chatId), 1000);
-                    }
-                });
-            } catch (Exception e) {
-                mainHandler.post(() -> {
-                    addLog("[NETWORK ERR] Retrying...", "warn");
-                    if (isRunning) mainHandler.postDelayed(() -> startTelegramPolling(chatId), 1000);
-                });
-            }
-        });
+    private void stopPollingService() {
+        isRunning = false;
+        prefs.edit().putBoolean("isRunning", false).apply();
+        startStopBtn.setText("START");
+        startStopBtn.setBackgroundResource(R.drawable.btn_start);
+        try {
+            Intent i = new Intent(this, PollingService.class);
+            i.setAction(PollingService.ACTION_STOP);
+            startService(i);
+        } catch (Exception ignore) {}
+        addLog("[SYSTEM] Bot Stopped.", "warn");
     }
 
-    private void handleTelegramResponse(JSONObject data, String chatId) throws Exception {
-        if (data.optBoolean("ok", false)) {
-            JSONArray result = data.optJSONArray("result");
-            if (result != null && result.length() > 0) {
-                for (int i = 0; i < result.length(); i++) {
-                    JSONObject update = result.getJSONObject(i);
-                    lastUpdateId = update.optLong("update_id", lastUpdateId);
+    private void ensureNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= 33) {
+            if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                try { requestPermissions(new String[]{ Manifest.permission.POST_NOTIFICATIONS }, 1234); } catch (Exception ignore) {}
+            }
+        }
+    }
 
-                    JSONObject post = update.optJSONObject("channel_post");
-                    if (post == null) post = update.optJSONObject("message");
-                    if (post == null) continue;
-
-                    JSONObject chat = post.optJSONObject("chat");
-                    String postChatId = chat != null ? String.valueOf(chat.opt("id")) : "";
-                    if (!postChatId.equals(String.valueOf(chatId))) continue;
-
-                    String text = post.optString("text", "");
-                    if (TextUtils.isEmpty(text)) text = post.optString("caption", "");
-                    if (TextUtils.isEmpty(text)) continue;
-
-                    String[] parsed = extractData(text);
-                    String target = parsed[0];
-                    String content = parsed[1];
-
-                    if (target != null && content != null) {
-                        currentTargetNumber = target;
-                        currentMessageBody = content;
-
-                        addLog("[TELEGRAM] New Msg Detected:", "success");
-                        addLog("To: " + currentTargetNumber, "info");
-                        addLog("Body: " + currentMessageBody, "info");
-
-                        pushToFirebase();
-                    } else {
-                        addLog("[TELEGRAM] Ignored (Format not matched)", "warn");
-                    }
+    private void requestBatteryExemptionOnce() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+                if (pm != null && !pm.isIgnoringBatteryOptimizations(getPackageName())
+                        && !prefs.getBoolean("batteryAsked", false)) {
+                    prefs.edit().putBoolean("batteryAsked", true).apply();
+                    Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                    intent.setData(Uri.parse("package:" + getPackageName()));
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(intent);
                 }
             }
-        } else {
-            String desc = data.optString("description", "Unknown Error");
-            addLog("[TELEGRAM ERR] " + desc, "err");
-            isRunning = false;
-            startStopBtn.setText("START");
-            startStopBtn.setBackgroundResource(R.drawable.btn_start);
-            return;
-        }
-
-        if (isRunning) {
-            mainHandler.postDelayed(() -> startTelegramPolling(chatId), 1000);
-        }
-    }
-
-    // ==========================================
-    // FIREBASE PUSH LOGIC
-    // ==========================================
-    private void pushToFirebase() {
-        final FirebaseUrl af = defaultFirebase();
-        if (af == null) {
-            addLog("[FIREBASE ERR] Default Firebase URL not set!", "err");
-            return;
-        }
-
-        final String url = af.url + "/clients/" + selectedDeviceId + "/webhookEvent/sendSms.json";
-
-        final JSONObject payload = new JSONObject();
-        try {
-            payload.put("from", selectedSimIndex);     // "0" for SIM 1, "1" for SIM 2
-            payload.put("to", currentTargetNumber);     // Exact number from Telegram
-            payload.put("message", currentMessageBody);  // Exact message from Telegram
-            payload.put("isSended", false);              // Always false
         } catch (Exception ignore) {}
-
-        executor.submit(() -> {
-            try {
-                HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
-                c.setRequestMethod("PUT");
-                c.setRequestProperty("Content-Type", "application/json");
-                c.setDoOutput(true);
-                c.setConnectTimeout(10000);
-                c.setReadTimeout(15000);
-                OutputStream os = c.getOutputStream();
-                os.write(payload.toString().getBytes("UTF-8"));
-                os.flush();
-                os.close();
-                final int code = c.getResponseCode();
-                try { InputStream is = c.getInputStream(); byte[] b = new byte[2048]; while (is.read(b) != -1) {} is.close(); } catch (Exception ignore) {}
-                c.disconnect();
-
-                mainHandler.post(() -> {
-                    if (code >= 200 && code < 300) {
-                        addLog("[FIREBASE] ✅ SMS Queued successfully!", "success");
-                    } else {
-                        addLog("[FIREBASE ERR] ❌ Failed (HTTP " + code + ")", "err");
-                    }
-                });
-            } catch (Exception e) {
-                mainHandler.post(() -> addLog("[FIREBASE ERR] ❌ Network Problem", "err"));
-            }
-        });
     }
 
     // ==========================================
@@ -947,6 +902,11 @@ public class MainActivity extends Activity {
     private void setDevice(String id, String model, String simVal) {
         selectedDeviceId = id;
         selectedSimIndex = simVal;
+        // Persist karo taaki app reopen/restart ke baad bhi device yaad rahe
+        prefs.edit()
+            .putString("selectedDeviceId", selectedDeviceId)
+            .putString("selectedSimIndex", selectedSimIndex)
+            .apply();
         addLog("[DEVICE] " + model + " (ID: " + id + ") set on SIM " +
                 (Integer.parseInt(selectedSimIndex) + 1) + ".", "info");
         switchPage("homePage");
@@ -989,7 +949,8 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        isRunning = false;
+        // NOTE: PollingService ko yahan band NAHI karte — wo background me chalta rahe.
+        try { if (eventReceiver != null) unregisterReceiver(eventReceiver); } catch (Exception ignore) {}
         mainHandler.removeCallbacksAndMessages(null);
         executor.shutdownNow();
     }

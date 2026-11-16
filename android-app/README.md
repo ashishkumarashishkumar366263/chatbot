@@ -37,6 +37,17 @@ cd android-app
 Requirements: JDK 17+, Android SDK (compileSdk 34, build-tools), internet (pehli baar
 Gradle plugin + AndroidX/framework download ke liye).
 
+## Background me chalna (kill na ho)
+- START dabate hi ek **Foreground Service** (`PollingService`) chalu hota hai jisme ek
+  permanent notification ("AUTO TOKEN — Running in background...") dikhti hai.
+- App **minimize** karo ya **recents se hata do** — Telegram polling + Firebase push
+  background me chalta rahega (`onTaskRemoved` par service band nahi hota, `START_STICKY`).
+- Ek **partial wake lock** CPU ko soft-doze me network ke liye jaga rakhta hai.
+- Pehli baar START par **battery optimization exemption** ka prompt aata hai — **Allow** karo
+  taaki Xiaomi/Oppo/Vivo jaise phone service ko na maarein. (Zaroorat ho to phone Settings me
+  app ka **Autostart** bhi on kar dena.)
+- Notification me **STOP** button se ya app me STOP se service band hoti hai.
+
 ## Config
 - Package: `com.autotoken.app`
 - minSdk 21, targetSdk 34, compileSdk 34
