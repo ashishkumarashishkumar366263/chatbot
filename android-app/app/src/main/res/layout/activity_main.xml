@@ -1,0 +1,508 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/bg">
+
+    <!-- HEADER -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@color/header_bg"
+        android:padding="15dp">
+
+        <FrameLayout
+            android:id="@+id/backBtn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_icon_btn"
+            android:padding="6dp"
+            android:visibility="invisible">
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:src="@drawable/ic_back" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/pageTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="AUTO TOKEN"
+            android:textColor="@color/white"
+            android:textSize="18sp"
+            android:letterSpacing="0.08"
+            android:textAllCaps="true" />
+
+        <TextView
+            android:id="@+id/pingStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="100dp"
+            android:gravity="center"
+            android:text="D: -- | U: --"
+            android:textColor="@color/green"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:fontFamily="monospace"
+            android:background="@drawable/bg_ping"
+            android:paddingLeft="8dp"
+            android:paddingRight="8dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/border" />
+
+    <!-- CONTENT -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <!-- HOME / TERMINAL PAGE -->
+        <LinearLayout
+            android:id="@+id/homePage"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:padding="15dp">
+
+            <ScrollView
+                android:id="@+id/terminalScroll"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_terminal"
+                android:padding="15dp"
+                android:layout_marginBottom="15dp"
+                android:scrollbars="vertical">
+
+                <LinearLayout
+                    android:id="@+id/terminalOutput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+            </ScrollView>
+
+            <Button
+                android:id="@+id/startStopBtn"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="START"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:background="@drawable/btn_start"
+                android:padding="15dp"
+                android:stateListAnimator="@null" />
+        </LinearLayout>
+
+        <!-- SEARCH PAGE -->
+        <ScrollView
+            android:id="@+id/searchPage"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="15dp"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:background="@drawable/bg_search_section"
+                    android:padding="15dp"
+                    android:layout_marginBottom="20dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="SEARCH BY MODEL NAME"
+                        android:textColor="@color/grey"
+                        android:textSize="11sp"
+                        android:letterSpacing="0.15"
+                        android:layout_marginBottom="8dp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <EditText
+                            android:id="@+id/searchInput"
+                            android:layout_width="0dp"
+                            android:layout_height="48dp"
+                            android:layout_weight="1"
+                            android:hint="e.g. V2495"
+                            android:textColorHint="@color/grey"
+                            android:textColor="@color/white"
+                            android:textSize="16sp"
+                            android:background="@drawable/bg_input_search"
+                            android:paddingLeft="12dp"
+                            android:paddingRight="12dp"
+                            android:inputType="text"
+                            android:imeOptions="actionSearch" />
+
+                        <FrameLayout
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:layout_marginLeft="8dp"
+                            android:background="@drawable/btn_orange8"
+                            android:id="@+id/searchBtn">
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_search" />
+                        </FrameLayout>
+
+                        <FrameLayout
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:layout_marginLeft="8dp"
+                            android:background="@drawable/bg_icon_btn"
+                            android:id="@+id/refreshBtn">
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_refresh" />
+                        </FrameLayout>
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/resultText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:textSize="14sp"
+                        android:textColor="@color/grey_light"
+                        android:text="Result: 0" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/deviceList"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+            </LinearLayout>
+        </ScrollView>
+
+        <!-- SETTINGS PAGE -->
+        <ScrollView
+            android:id="@+id/settingsPage"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="15dp"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <!-- Telegram Bot Token -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:background="@drawable/bg_card"
+                    android:padding="15dp"
+                    android:layout_marginBottom="15dp">
+
+                    <TextView style="@style/CardHeading" android:text="TELEGRAM BOT TOKEN" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="4dp">
+
+                        <EditText
+                            android:id="@+id/telegramToken"
+                            android:layout_width="0dp"
+                            android:layout_height="40dp"
+                            android:layout_weight="1"
+                            android:hint="Enter Bot Token"
+                            android:textColorHint="@color/grey"
+                            android:textColor="@color/white"
+                            android:textSize="14sp"
+                            android:background="@drawable/bg_input"
+                            android:paddingLeft="10dp"
+                            android:paddingRight="10dp"
+                            android:inputType="text" />
+
+                        <Button
+                            android:id="@+id/setTokenBtn"
+                            android:layout_width="wrap_content"
+                            android:layout_height="40dp"
+                            android:layout_marginLeft="8dp"
+                            android:text="SET"
+                            android:textColor="@color/white"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:background="@drawable/btn_green"
+                            android:minWidth="0dp"
+                            android:paddingLeft="15dp"
+                            android:paddingRight="15dp"
+                            android:stateListAnimator="@null" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tokenStatus"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Token Saved!"
+                        android:textColor="@color/green"
+                        android:textSize="12sp"
+                        android:layout_marginTop="5dp"
+                        android:visibility="gone" />
+                </LinearLayout>
+
+                <!-- Chat IDs -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:background="@drawable/bg_card"
+                    android:padding="15dp"
+                    android:layout_marginBottom="15dp">
+
+                    <TextView style="@style/CardHeading" android:text="TELEGRAM CHAT IDS (CHANNEL)" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <EditText
+                            android:id="@+id/chatIdInput"
+                            android:layout_width="0dp"
+                            android:layout_height="40dp"
+                            android:layout_weight="1"
+                            android:hint="Chat ID (e.g. -100...)"
+                            android:textColorHint="@color/grey"
+                            android:textColor="@color/white"
+                            android:textSize="14sp"
+                            android:background="@drawable/bg_input"
+                            android:paddingLeft="10dp"
+                            android:paddingRight="10dp"
+                            android:inputType="text" />
+
+                        <EditText
+                            android:id="@+id/chatNickInput"
+                            android:layout_width="0dp"
+                            android:layout_height="40dp"
+                            android:layout_weight="0.6"
+                            android:layout_marginLeft="8dp"
+                            android:hint="Nickname"
+                            android:textColorHint="@color/grey"
+                            android:textColor="@color/white"
+                            android:textSize="14sp"
+                            android:background="@drawable/bg_input"
+                            android:paddingLeft="10dp"
+                            android:paddingRight="10dp"
+                            android:inputType="text" />
+
+                        <Button
+                            android:id="@+id/addChatBtn"
+                            android:layout_width="wrap_content"
+                            android:layout_height="40dp"
+                            android:layout_marginLeft="8dp"
+                            android:text="+"
+                            android:textColor="@color/white"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:background="@drawable/btn_orange"
+                            android:minWidth="0dp"
+                            android:paddingLeft="15dp"
+                            android:paddingRight="15dp"
+                            android:stateListAnimator="@null" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/chatIdList"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_marginTop="10dp" />
+                </LinearLayout>
+
+                <!-- Firebase URLs -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:background="@drawable/bg_card"
+                    android:padding="15dp"
+                    android:layout_marginBottom="15dp">
+
+                    <TextView style="@style/CardHeading" android:text="FIREBASE URLS" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <EditText
+                            android:id="@+id/firebaseUrlInput"
+                            android:layout_width="0dp"
+                            android:layout_height="40dp"
+                            android:layout_weight="1"
+                            android:hint="Firebase URL"
+                            android:textColorHint="@color/grey"
+                            android:textColor="@color/white"
+                            android:textSize="14sp"
+                            android:background="@drawable/bg_input"
+                            android:paddingLeft="10dp"
+                            android:paddingRight="10dp"
+                            android:inputType="text" />
+
+                        <EditText
+                            android:id="@+id/firebaseNickInput"
+                            android:layout_width="0dp"
+                            android:layout_height="40dp"
+                            android:layout_weight="0.6"
+                            android:layout_marginLeft="8dp"
+                            android:hint="Nickname"
+                            android:textColorHint="@color/grey"
+                            android:textColor="@color/white"
+                            android:textSize="14sp"
+                            android:background="@drawable/bg_input"
+                            android:paddingLeft="10dp"
+                            android:paddingRight="10dp"
+                            android:inputType="text" />
+
+                        <Button
+                            android:id="@+id/addFirebaseBtn"
+                            android:layout_width="wrap_content"
+                            android:layout_height="40dp"
+                            android:layout_marginLeft="8dp"
+                            android:text="+"
+                            android:textColor="@color/white"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:background="@drawable/btn_orange"
+                            android:minWidth="0dp"
+                            android:paddingLeft="15dp"
+                            android:paddingRight="15dp"
+                            android:stateListAnimator="@null" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/firebaseUrlList"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_marginTop="10dp" />
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/saveAllBtn"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="SAVE ALL SETTINGS"
+                    android:textColor="@color/white"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:background="@drawable/btn_green_big"
+                    android:padding="14dp"
+                    android:stateListAnimator="@null" />
+            </LinearLayout>
+        </ScrollView>
+    </FrameLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/border" />
+
+    <!-- BOTTOM NAV -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="@color/header_bg"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp">
+
+        <LinearLayout
+            android:id="@+id/navHome"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center">
+            <ImageView
+                android:id="@+id/navHomeIcon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_marginBottom="4dp"
+                android:src="@drawable/ic_terminal" />
+            <TextView
+                android:id="@+id/navHomeText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Terminal"
+                android:textColor="@color/orange"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/navSearch"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center">
+            <ImageView
+                android:id="@+id/navSearchIcon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_marginBottom="4dp"
+                android:src="@drawable/ic_search" />
+            <TextView
+                android:id="@+id/navSearchText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Search"
+                android:textColor="@color/grey_dark"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/navSettings"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center">
+            <ImageView
+                android:id="@+id/navSettingsIcon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_marginBottom="4dp"
+                android:src="@drawable/ic_settings" />
+            <TextView
+                android:id="@+id/navSettingsText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Settings"
+                android:textColor="@color/grey_dark"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>
