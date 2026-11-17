@@ -95,10 +95,12 @@ public class NotifyService extends Service {
     }
 
     private Set<String> fetchKeys() {
-        if (!Config.hasSecret()) return null;
+        if (!Config.configured()) return null;
+        String token = Config.idToken();
+        if (token == null) return null;
         try {
             HttpURLConnection c = (HttpURLConnection) new URL(
-                    Config.CENTRAL_DB_URL + "/messages.json?shallow=true&auth=" + Config.ADMIN_DB_SECRET)
+                    Config.CENTRAL_DB_URL + "/messages.json?shallow=true&auth=" + token)
                     .openConnection();
             c.setConnectTimeout(10000);
             c.setReadTimeout(15000);

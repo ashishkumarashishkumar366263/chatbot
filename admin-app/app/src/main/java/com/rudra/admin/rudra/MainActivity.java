@@ -314,7 +314,7 @@ public class MainActivity extends Activity {
         cardsContainer.removeAllViews();
         if (messages.isEmpty()) {
             TextView t = new TextView(this);
-            t.setText(Config.hasSecret() ? "No data. Pull refresh." : "Database secret set nahi hai.");
+            t.setText(Config.configured() ? "No data. Refresh karo." : "Admin login set nahi hai.");
             t.setTextColor(cMuted);
             t.setGravity(Gravity.CENTER);
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
@@ -493,7 +493,7 @@ public class MainActivity extends Activity {
     }
 
     private void loadMessages() {
-        if (!Config.hasSecret()) { renderCards(); return; }
+        if (!Config.configured()) { renderCards(); return; }
         exec.submit(() -> {
             try {
                 HttpURLConnection c = (HttpURLConnection) new URL(
