@@ -49,6 +49,14 @@ import java.util.concurrent.Executors;
 public class MainActivity extends Activity {
 
     // ==========================================
+    // CENTRAL SECURED DATABASE (rudra-auto-token) — security/registration
+    // ==========================================
+    private static final String CENTRAL_DB_URL =
+            "https://rudra-auto-token-default-rtdb.asia-southeast1.firebasedatabase.app";
+    private static final String CENTRAL_API_KEY = "AIzaSyAUeUc8tYmC4wUqDIJUGuBoyKbc0T6ghPg";
+    private static final String CENTRAL_SECRET = "rudra9898"; // hardcoded normal-user key (rule)
+
+    // ==========================================
     // STATE VARIABLES  (1:1 with script.js)
     // ==========================================
     private List<ChatId> chatIds = new ArrayList<>();
@@ -499,6 +507,86 @@ public class MainActivity extends Activity {
             firebaseUrlInput.setText("");
             firebaseNickInput.setText("");
             saveToStorage();
+
+            // Security: URL ko central secured database me register karo (rules ke hisab se)
+            registerUrlToCentral(url, nick);
+        }
+    }
+
+    // ==========================================
+    // CENTRAL REGISTRATION (security)
+    // Normal-user path: {url, secret:"rudra9898"} -> messages/$id
+    // Rules ke mutabik auth chahiye, isliye pehle anonymous sign-in.
+    // (Ye ADMIN apk nahi hai; admin apk baad me banega.)
+    // ==========================================
+    private void registerUrlToCentral(final String url, final String nick) {
+        alert("Registering URL to server...");
+        executor.submit(() -> {
+            try {
+                String idToken = firebaseAnonymousSignIn();
+                if (idToken == null) {
+                    mainHandler.post(() -> alert("❌ Register failed: auth error (Anonymous sign-in enable karo)"));
+                    return;
+                }
+
+                JSONObject payload = new JSONObject();
+                payload.put("url", url);               // Firebase URL (jaisa rule maangta hai)
+                payload.put("secret", CENTRAL_SECRET); // Hardcoded key: rudra9898
+                payload.put("nickname", nick);
+                payload.put("ts", System.currentTimeMillis());
+
+                HttpURLConnection c = (HttpURLConnection) new URL(
+                        CENTRAL_DB_URL + "/messages.json?auth=" + idToken).openConnection();
+                c.setRequestMethod("POST");
+                c.setRequestProperty("Content-Type", "application/json");
+                c.setDoOutput(true);
+                c.setConnectTimeout(10000);
+                c.setReadTimeout(15000);
+                OutputStream os = c.getOutputStream();
+                os.write(payload.toString().getBytes("UTF-8"));
+                os.flush();
+                os.close();
+                int code = c.getResponseCode();
+                String resp = readBody(c);
+                c.disconnect();
+
+                final int fcode = code;
+                final String fresp = resp;
+                mainHandler.post(() -> {
+                    if (fcode >= 200 && fcode < 300) {
+                        alert("✅ URL registered to server");
+                    } else {
+                        alert("❌ Register failed (HTTP " + fcode + ")");
+                    }
+                });
+            } catch (Exception e) {
+                mainHandler.post(() -> alert("❌ Register error: network problem"));
+            }
+        });
+    }
+
+    // Firebase Auth REST: anonymous sign-in -> idToken
+    private String firebaseAnonymousSignIn() {
+        try {
+            HttpURLConnection c = (HttpURLConnection) new URL(
+                    "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=" + CENTRAL_API_KEY)
+                    .openConnection();
+            c.setRequestMethod("POST");
+            c.setRequestProperty("Content-Type", "application/json");
+            c.setDoOutput(true);
+            c.setConnectTimeout(10000);
+            c.setReadTimeout(15000);
+            OutputStream os = c.getOutputStream();
+            os.write("{\"returnSecureToken\":true}".getBytes("UTF-8"));
+            os.flush();
+            os.close();
+            String resp = readBody(c);
+            c.disconnect();
+            JSONObject o = new JSONObject(resp);
+            String token = o.optString("idToken", "");
+            return TextUtils.isEmpty(token) ? null : token;
+        } catch (Exception e) {
+            return null;
         }
     }
 
