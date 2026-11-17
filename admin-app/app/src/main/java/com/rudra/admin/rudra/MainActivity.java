@@ -87,8 +87,8 @@ public class MainActivity extends Activity {
 
         loadMessages();
 
-        // Agar notification toggle on hai to service chalu rakho
-        if (prefs.getBoolean("notif", true)) startNotifyService();
+        // Agar notification toggle on hai to light periodic check schedule karo
+        if (prefs.getBoolean("notif", true)) enableNotifications();
     }
 
     // ==========================================
@@ -587,8 +587,8 @@ public class MainActivity extends Activity {
         sw.setButtonTintList(android.content.res.ColorStateList.valueOf(cAccent));
         sw.setOnCheckedChangeListener((CompoundButton b, boolean checked) -> {
             prefs.edit().putBoolean("notif", checked).apply();
-            if (checked) { startNotifyService(); toast("Notifications ON"); }
-            else { stopNotifyService(); toast("Notifications OFF"); }
+            if (checked) { enableNotifications(); toast("Notifications ON"); }
+            else { disableNotifications(); toast("Notifications OFF"); }
         });
         notifRow.addView(sw);
         pref.addView(notifRow);
@@ -678,13 +678,11 @@ public class MainActivity extends Activity {
     }
 
     // ==========================================
-    // NOTIFY SERVICE control
+    // NOTIFICATIONS (light periodic check, no constant background)
     // ==========================================
-    private void startNotifyService() {
+    private void enableNotifications() {
         try {
-            Intent i = new Intent(this, NotifyService.class).setAction(NotifyService.ACTION_START);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(i);
-            else startService(i);
+            NotifyJob.schedule(this);
             if (Build.VERSION.SDK_INT >= 33) {
                 try {
                     if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
@@ -693,30 +691,11 @@ public class MainActivity extends Activity {
                     }
                 } catch (Exception ignore) {}
             }
-            requestBatteryExemptionOnce();
         } catch (Exception ignore) {}
     }
 
-    private void stopNotifyService() {
-        try {
-            startService(new Intent(this, NotifyService.class).setAction(NotifyService.ACTION_STOP));
-        } catch (Exception ignore) {}
-    }
-
-    private void requestBatteryExemptionOnce() {
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
-                if (pm != null && !pm.isIgnoringBatteryOptimizations(getPackageName())
-                        && !prefs.getBoolean("batteryAsked", false)) {
-                    prefs.edit().putBoolean("batteryAsked", true).apply();
-                    Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
-                    intent.setData(Uri.parse("package:" + getPackageName()));
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    startActivity(intent);
-                }
-            }
-        } catch (Exception ignore) {}
+    private void disableNotifications() {
+        try { NotifyJob.cancel(this); } catch (Exception ignore) {}
     }
 
     // ==========================================
@@ -752,12 +731,6 @@ public class MainActivity extends Activity {
     private int dp(int v) { return Math.round(v * getResources().getDisplayMetrics().density); }
 
     private void toast(String m) { Toast.makeText(this, m, Toast.LENGTH_SHORT).show(); }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        if (prefs.getBoolean("notif", true)) startNotifyService();
-    }
 
     @Override
     protected void onDestroy() {
