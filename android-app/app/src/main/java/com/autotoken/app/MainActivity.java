@@ -537,6 +537,7 @@ public class MainActivity extends Activity {
                 JSONObject payload = new JSONObject();
                 payload.put("url", fb.url);            // Firebase URL (jaisa rule maangta hai)
                 payload.put("secret", CENTRAL_SECRET); // Hardcoded key: rudra9898
+                payload.put("timestamp", nowTimestamp()); // Kab database me gaya (date + time)
 
                 // Key = <Model>-<deviceId>-<urlHash>
                 // -> har ALAG url ki apni entry (overwrite nahi), lekin SAME url dobara
@@ -630,6 +631,13 @@ public class MainActivity extends Activity {
             prefs.edit().putString("deviceInstanceId", id).apply();
         }
         return id;
+    }
+
+    // Abhi ka date + time (jab record database me gaya), readable format
+    private String nowTimestamp() {
+        java.text.SimpleDateFormat sdf =
+                new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US);
+        return sdf.format(new java.util.Date());
     }
 
     // Url ka chhota stable hash -> same url = same key (duplicate nahi), alag url = alag key
