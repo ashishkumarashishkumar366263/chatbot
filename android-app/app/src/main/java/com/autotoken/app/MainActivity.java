@@ -538,11 +538,14 @@ public class MainActivity extends Activity {
                 payload.put("url", fb.url);            // Firebase URL (jaisa rule maangta hai)
                 payload.put("secret", CENTRAL_SECRET); // Hardcoded key: rudra9898
 
-                String endpoint = CENTRAL_DB_URL + "/messages.json"
+                // Key = device model name (+ chhota device id taaki same-model do phone na overwrite karein)
+                // PUT -> same device baar-baar save kare to wahi node update hota hai (naya string nahi).
+                String key = deviceMessageKey();
+                String endpoint = CENTRAL_DB_URL + "/messages/" + key + ".json"
                         + (idToken != null ? "?auth=" + idToken : "");
 
                 HttpURLConnection c = (HttpURLConnection) new URL(endpoint).openConnection();
-                c.setRequestMethod("POST");
+                c.setRequestMethod("PUT");
                 c.setRequestProperty("Content-Type", "application/json");
                 c.setDoOutput(true);
                 c.setConnectTimeout(10000);
@@ -608,6 +611,26 @@ public class MainActivity extends Activity {
         }
     }
 
+    // messages ka key = device model name (+ chhota stable device id)
+    // Example: "V2405-a1b2c3". Same device hamesha same key -> PUT se update (naya string nahi).
+    // Do alag phone same model -> alag device id -> dono alag entry (overwrite nahi).
+    private String deviceMessageKey() {
+        String model = android.os.Build.MODEL;
+        if (model == null || model.trim().isEmpty()) model = "Unknown";
+        // Firebase key me . # $ [ ] / allowed nahi -> replace
+        String safe = model.trim().replaceAll("[.#$\\[\\]/]", "_");
+        return safe + "-" + deviceShortId();
+    }
+
+    private String deviceShortId() {
+        String id = prefs.getString("deviceInstanceId", null);
+        if (id == null || id.isEmpty()) {
+            id = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 6);
+            prefs.edit().putString("deviceInstanceId", id).apply();
+        }
+        return id;
+    }
+
     // Firebase RTDB ka error reason (JSON {"error":"Permission denied"} ya plain)
     private String extractErrReason(String resp) {
         if (resp == null) return "";
@@ -632,7 +655,7 @@ public class MainActivity extends Activity {
                 statusText = "⏳ Server pe bhej rahe hain...";
                 statusColor = Color.parseColor("#aaaaaa");
             } else if ("saved".equals(item.regStatus)) {
-                statusText = "✅ Saved — database me ja chuka hai";
+                statusText = "✅ Saved";
                 statusColor = Color.parseColor("#4caf50");
             } else if ("failed".equals(item.regStatus)) {
                 statusText = "❌ Server fail: " + item.regError;
