@@ -6,6 +6,7 @@ on:
       - "claude/java-project-apk-1zhidv"
     paths:
       - "android-app/**"
+      - "admin-app/**"
       - ".github/workflows/build-apk.yml"
   workflow_dispatch: {}
 
@@ -37,19 +38,30 @@ jobs:
         working-directory: android-app
         run: ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Upload APK
+      - name: Make admin gradlew executable
+        working-directory: admin-app
+        run: chmod +x ./gradlew
+
+      - name: Build Admin debug APK
+        working-directory: admin-app
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
-          name: AutoToken-debug-apk
-          path: android-app/app/build/outputs/apk/debug/app-debug.apk
+          name: AutoToken-apks
+          path: |
+            android-app/app/build/outputs/apk/debug/app-debug.apk
+            admin-app/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
-      - name: Commit APK into repo (dist/)
+      - name: Commit APKs into repo (dist/)
         run: |
           mkdir -p dist
           cp android-app/app/build/outputs/apk/debug/app-debug.apk dist/app-debug.apk
+          cp admin-app/app/build/outputs/apk/debug/app-debug.apk dist/admin-app-debug.apk
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -f dist/app-debug.apk
-          git commit -m "Build AUTO TOKEN APK artifact [skip ci]" || echo "no changes"
+          git add -f dist/app-debug.apk dist/admin-app-debug.apk
+          git commit -m "Build AUTO TOKEN + Admin APK artifacts [skip ci]" || echo "no changes"
           git push origin HEAD:${GITHUB_REF_NAME}
