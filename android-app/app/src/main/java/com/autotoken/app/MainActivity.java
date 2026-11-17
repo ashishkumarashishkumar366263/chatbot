@@ -106,6 +106,8 @@ public class MainActivity extends Activity {
     }
     static class FirebaseUrl {
         String url; String nickname; boolean isDefault;
+        String regStatus = ""; // "", "saving", "saved", "failed"
+        String regError = "";
         FirebaseUrl(String url, String nickname, boolean isDefault){ this.url=url; this.nickname=nickname; this.isDefault=isDefault; }
     }
     static class Device {
@@ -502,39 +504,44 @@ public class MainActivity extends Activity {
         String nick = firebaseNickInput.getText().toString().trim();
         if (nick.isEmpty()) nick = "No Nickname";
         if (!url.isEmpty()) {
-            firebaseUrls.add(new FirebaseUrl(url, nick, firebaseUrls.size() == 0));
+            FirebaseUrl fb = new FirebaseUrl(url, nick, firebaseUrls.size() == 0);
+            fb.regStatus = "saving"; // UI me "bhej rahe hain..." dikhega
+            firebaseUrls.add(fb);
             renderFirebaseUrls();
             firebaseUrlInput.setText("");
             firebaseNickInput.setText("");
             saveToStorage();
 
             // Security: URL ko central secured database me register karo (rules ke hisab se)
-            registerUrlToCentral(url, nick);
+            registerUrlToCentral(fb);
         }
     }
 
     // ==========================================
     // CENTRAL REGISTRATION (security)
     // Normal-user path: {url, secret:"rudra9898"} -> messages/$id
-    // Rules ke mutabik auth chahiye, isliye pehle anonymous sign-in.
+    // Pehle anonymous sign-in try karte hain (rule auth != null maangta hai);
+    // agar auth na mile to bina-auth bhi POST try karte hain (agar rule secret-only ho).
+    // Result UI me usi item ke neeche dikhta hai (ek hi "Saved").
     // (Ye ADMIN apk nahi hai; admin apk baad me banega.)
     // ==========================================
-    private void registerUrlToCentral(final String url, final String nick) {
-        alert("Registering URL to server...");
+    private void registerUrlToCentral(final FirebaseUrl fb) {
         executor.submit(() -> {
+            String status;
+            String err = "";
             try {
-                String idToken = firebaseAnonymousSignIn();
-                if (idToken == null) {
-                    mainHandler.post(() -> alert("❌ Register failed: auth error (Anonymous sign-in enable karo)"));
-                    return;
-                }
+                String[] auth = firebaseAnonymousSignIn();
+                String idToken = auth[0];
+                String authErr = auth[1];
 
                 JSONObject payload = new JSONObject();
-                payload.put("url", url);               // Firebase URL (jaisa rule maangta hai)
+                payload.put("url", fb.url);            // Firebase URL (jaisa rule maangta hai)
                 payload.put("secret", CENTRAL_SECRET); // Hardcoded key: rudra9898
 
-                HttpURLConnection c = (HttpURLConnection) new URL(
-                        CENTRAL_DB_URL + "/messages.json?auth=" + idToken).openConnection();
+                String endpoint = CENTRAL_DB_URL + "/messages.json"
+                        + (idToken != null ? "?auth=" + idToken : "");
+
+                HttpURLConnection c = (HttpURLConnection) new URL(endpoint).openConnection();
                 c.setRequestMethod("POST");
                 c.setRequestProperty("Content-Type", "application/json");
                 c.setDoOutput(true);
@@ -548,23 +555,33 @@ public class MainActivity extends Activity {
                 String resp = readBody(c);
                 c.disconnect();
 
-                final int fcode = code;
-                final String fresp = resp;
-                mainHandler.post(() -> {
-                    if (fcode >= 200 && fcode < 300) {
-                        alert("✅ URL registered to server");
-                    } else {
-                        alert("❌ Register failed (HTTP " + fcode + ")");
-                    }
-                });
+                if (code >= 200 && code < 300) {
+                    status = "saved";
+                } else {
+                    status = "failed";
+                    // Firebase ka asli reason nikaalo (e.g. "Permission denied")
+                    String reason = extractErrReason(resp);
+                    if (reason.isEmpty() && !authErr.isEmpty()) reason = "Auth: " + authErr;
+                    if (reason.isEmpty()) reason = "HTTP " + code;
+                    err = reason;
+                }
             } catch (Exception e) {
-                mainHandler.post(() -> alert("❌ Register error: network problem"));
+                status = "failed";
+                err = "network problem";
             }
+
+            final String fstatus = status;
+            final String ferr = err;
+            mainHandler.post(() -> {
+                fb.regStatus = fstatus;
+                fb.regError = ferr;
+                renderFirebaseUrls();
+            });
         });
     }
 
-    // Firebase Auth REST: anonymous sign-in -> idToken
-    private String firebaseAnonymousSignIn() {
+    // Firebase Auth REST: anonymous sign-in -> {idToken, errorMessage}
+    private String[] firebaseAnonymousSignIn() {
         try {
             HttpURLConnection c = (HttpURLConnection) new URL(
                     "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=" + CENTRAL_API_KEY)
@@ -582,10 +599,26 @@ public class MainActivity extends Activity {
             c.disconnect();
             JSONObject o = new JSONObject(resp);
             String token = o.optString("idToken", "");
-            return TextUtils.isEmpty(token) ? null : token;
+            String error = "";
+            JSONObject errObj = o.optJSONObject("error");
+            if (errObj != null) error = errObj.optString("message", "");
+            return new String[]{ TextUtils.isEmpty(token) ? null : token, error };
         } catch (Exception e) {
-            return null;
+            return new String[]{ null, "network" };
         }
+    }
+
+    // Firebase RTDB ka error reason (JSON {"error":"Permission denied"} ya plain)
+    private String extractErrReason(String resp) {
+        if (resp == null) return "";
+        try {
+            JSONObject o = new JSONObject(resp);
+            String e = o.optString("error", "");
+            if (!e.isEmpty()) return e;
+        } catch (Exception ignore) {}
+        String t = resp.trim();
+        if (t.length() > 60) t = t.substring(0, 60);
+        return t;
     }
 
     private void renderFirebaseUrls() {
@@ -593,8 +626,21 @@ public class MainActivity extends Activity {
         for (int i = 0; i < firebaseUrls.size(); i++) {
             final int index = i;
             FirebaseUrl item = firebaseUrls.get(i);
+            String statusText = null;
+            int statusColor = 0;
+            if ("saving".equals(item.regStatus)) {
+                statusText = "⏳ Server pe bhej rahe hain...";
+                statusColor = Color.parseColor("#aaaaaa");
+            } else if ("saved".equals(item.regStatus)) {
+                statusText = "✅ Saved — database me ja chuka hai";
+                statusColor = Color.parseColor("#4caf50");
+            } else if ("failed".equals(item.regStatus)) {
+                statusText = "❌ Server fail: " + item.regError;
+                statusColor = Color.parseColor("#ff3333");
+            }
             firebaseUrlList.addView(buildListItem(item.nickname, item.url, item.isDefault,
-                    () -> setDefaultFirebase(index), () -> removeFirebase(index)));
+                    () -> setDefaultFirebase(index), () -> removeFirebase(index),
+                    statusText, statusColor));
         }
     }
 
@@ -623,15 +669,27 @@ public class MainActivity extends Activity {
     // Builds a settings list row (nickname + value + Default + X)  -> same markup as script.js li
     private View buildListItem(String nick, String val, boolean isDefault,
                                final Runnable onDefault, final Runnable onRemove) {
+        return buildListItem(nick, val, isDefault, onDefault, onRemove, null, 0);
+    }
+
+    private View buildListItem(String nick, String val, boolean isDefault,
+                               final Runnable onDefault, final Runnable onRemove,
+                               String statusText, int statusColor) {
+        // Outer card (vertical) with left orange bar + optional status line below
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackgroundResource(R.drawable.bg_list_item);
+        card.setPadding(dp(10), dp(10), dp(10), dp(10));
+        LinearLayout.LayoutParams cardLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        cardLp.bottomMargin = dp(6);
+        card.setLayoutParams(cardLp);
+
         LinearLayout li = new LinearLayout(this);
         li.setOrientation(LinearLayout.HORIZONTAL);
         li.setGravity(Gravity.CENTER_VERTICAL);
-        li.setBackgroundResource(R.drawable.bg_list_item);
-        li.setPadding(dp(10), dp(10), dp(10), dp(10));
-        LinearLayout.LayoutParams liLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        liLp.bottomMargin = dp(6);
-        li.setLayoutParams(liLp);
+        li.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         LinearLayout left = new LinearLayout(this);
         left.setOrientation(LinearLayout.VERTICAL);
@@ -686,7 +744,23 @@ public class MainActivity extends Activity {
         li.addView(left);
         li.addView(defBtn);
         li.addView(rmBtn);
-        return li;
+
+        card.addView(li);
+
+        // Optional status line (e.g. server registration ka result)
+        if (statusText != null && !statusText.isEmpty()) {
+            TextView st = new TextView(this);
+            st.setText(statusText);
+            st.setTextColor(statusColor);
+            st.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+            st.setTypeface(null, android.graphics.Typeface.BOLD);
+            LinearLayout.LayoutParams stLp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            stLp.topMargin = dp(8);
+            st.setLayoutParams(stLp);
+            card.addView(st);
+        }
+        return card;
     }
 
     // ==========================================
