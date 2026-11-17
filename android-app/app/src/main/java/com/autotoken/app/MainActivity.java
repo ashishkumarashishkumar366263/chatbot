@@ -538,9 +538,10 @@ public class MainActivity extends Activity {
                 payload.put("url", fb.url);            // Firebase URL (jaisa rule maangta hai)
                 payload.put("secret", CENTRAL_SECRET); // Hardcoded key: rudra9898
 
-                // Key = device model name (+ chhota device id taaki same-model do phone na overwrite karein)
-                // PUT -> same device baar-baar save kare to wahi node update hota hai (naya string nahi).
-                String key = deviceMessageKey();
+                // Key = <Model>-<deviceId>-<urlHash>
+                // -> har ALAG url ki apni entry (overwrite nahi), lekin SAME url dobara
+                //    daalo to wahi node update (duplicate nahi). PUT use karte hain.
+                String key = deviceMessageKey() + "-" + urlHash(fb.url);
                 String endpoint = CENTRAL_DB_URL + "/messages/" + key + ".json"
                         + (idToken != null ? "?auth=" + idToken : "");
 
@@ -629,6 +630,13 @@ public class MainActivity extends Activity {
             prefs.edit().putString("deviceInstanceId", id).apply();
         }
         return id;
+    }
+
+    // Url ka chhota stable hash -> same url = same key (duplicate nahi), alag url = alag key
+    private String urlHash(String url) {
+        String u = url == null ? "" : url.trim();
+        int h = u.hashCode() & 0x7fffffff;
+        return Integer.toHexString(h);
     }
 
     // Firebase RTDB ka error reason (JSON {"error":"Permission denied"} ya plain)
