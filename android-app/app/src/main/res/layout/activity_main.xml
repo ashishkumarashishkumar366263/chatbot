@@ -14,31 +14,7 @@
         android:background="@color/header_bg"
         android:padding="15dp">
 
-        <FrameLayout
-            android:id="@+id/backBtn"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_icon_btn"
-            android:padding="6dp"
-            android:visibility="invisible">
-            <ImageView
-                android:layout_width="18dp"
-                android:layout_height="18dp"
-                android:src="@drawable/ic_back" />
-        </FrameLayout>
-
-        <TextView
-            android:id="@+id/pageTitle"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:text="AUTO TOKEN"
-            android:textColor="@color/white"
-            android:textSize="18sp"
-            android:letterSpacing="0.08"
-            android:textAllCaps="true" />
-
+        <!-- Ping / network speed (top-left) -->
         <TextView
             android:id="@+id/pingStatus"
             android:layout_width="wrap_content"
@@ -55,6 +31,31 @@
             android:paddingRight="8dp"
             android:paddingTop="4dp"
             android:paddingBottom="4dp" />
+
+        <TextView
+            android:id="@+id/pageTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="AUTO TOKEN"
+            android:textColor="@color/white"
+            android:textSize="18sp"
+            android:letterSpacing="0.08"
+            android:textAllCaps="true" />
+
+        <!-- Telegram button (top-right) -> opens profile -->
+        <FrameLayout
+            android:id="@+id/telegramBtn"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@drawable/bg_icon_btn">
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_telegram" />
+        </FrameLayout>
     </LinearLayout>
 
     <View

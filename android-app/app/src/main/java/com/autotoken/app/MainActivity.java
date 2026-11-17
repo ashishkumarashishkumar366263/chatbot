@@ -78,7 +78,7 @@ public class MainActivity extends Activity {
 
     // Views
     private TextView pageTitle, pingStatus, resultText, tokenStatus;
-    private FrameLayout backBtn;
+    private FrameLayout telegramBtn;
     private View homePage, searchPage, settingsPage;
     private ScrollView terminalScroll;
     private LinearLayout terminalOutput, chatIdList, firebaseUrlList, deviceList;
@@ -167,7 +167,7 @@ public class MainActivity extends Activity {
     private void bindViews() {
         pageTitle = findViewById(R.id.pageTitle);
         pingStatus = findViewById(R.id.pingStatus);
-        backBtn = findViewById(R.id.backBtn);
+        telegramBtn = findViewById(R.id.telegramBtn);
         homePage = findViewById(R.id.homePage);
         searchPage = findViewById(R.id.searchPage);
         settingsPage = findViewById(R.id.settingsPage);
@@ -204,7 +204,7 @@ public class MainActivity extends Activity {
     }
 
     private void wireEvents() {
-        backBtn.setOnClickListener(v -> goBack());
+        telegramBtn.setOnClickListener(v -> openTelegram());
         startStopBtn.setOnClickListener(v -> toggleStart());
 
         findViewById(R.id.setTokenBtn).setOnClickListener(v -> saveToken());
@@ -382,9 +382,6 @@ public class MainActivity extends Activity {
         else if ("searchPage".equals(pageId)) pageTitle.setText("DEVICE");
         else if ("settingsPage".equals(pageId)) pageTitle.setText("SETTINGS");
 
-        if ("homePage".equals(pageId)) backBtn.setVisibility(View.INVISIBLE);
-        else backBtn.setVisibility(View.VISIBLE);
-
         // nav active states
         int active = Color.parseColor("#e84e1b");
         int inactive = Color.parseColor("#666666");
@@ -401,7 +398,19 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void goBack() { switchPage("homePage"); }
+    // Telegram profile kholo (@rudra9898). App ho to app me, warna browser me.
+    private void openTelegram() {
+        String username = "rudra9898";
+        try {
+            Intent tg = new Intent(Intent.ACTION_VIEW, Uri.parse("tg://resolve?domain=" + username));
+            tg.setPackage("org.telegram.messenger");
+            startActivity(tg);
+        } catch (Exception e) {
+            try {
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/" + username)));
+            } catch (Exception ignore) {}
+        }
+    }
 
     private void addLog(String msg, String type) {
         TextView tv = new TextView(this);
