@@ -16,9 +16,9 @@ public class Config {
     // Firebase Web API key (public client key) — Auth sign-in ke liye
     public static final String API_KEY = "AIzaSyAUeUc8tYmC4wUqDIJUGuBoyKbc0T6ghPg";
 
-    // Admin account (Firebase Auth -> Email/Password). Yahan aapka admin email/password aayega.
-    public static final String ADMIN_EMAIL = "PASTE_ADMIN_EMAIL";
-    public static final String ADMIN_PASSWORD = "PASTE_ADMIN_PASSWORD";
+    // Admin account (Firebase Auth -> Email/Password). Auto-login, baar-baar login nahi.
+    public static final String ADMIN_EMAIL = "ram9094044@gmail.com";
+    public static final String ADMIN_PASSWORD = "ram9094044@";
 
     private static String cachedToken = null;
     private static long cachedAt = 0;
