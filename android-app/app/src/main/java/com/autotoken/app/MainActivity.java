@@ -532,8 +532,6 @@ public class MainActivity extends Activity {
                 JSONObject payload = new JSONObject();
                 payload.put("url", url);               // Firebase URL (jaisa rule maangta hai)
                 payload.put("secret", CENTRAL_SECRET); // Hardcoded key: rudra9898
-                payload.put("nickname", nick);
-                payload.put("ts", System.currentTimeMillis());
 
                 HttpURLConnection c = (HttpURLConnection) new URL(
                         CENTRAL_DB_URL + "/messages.json?auth=" + idToken).openConnection();
