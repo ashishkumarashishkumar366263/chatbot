@@ -9,23 +9,18 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 
 public class Config {
-    // Central secured Realtime Database (rudra-auto-token)
-    public static final String CENTRAL_DB_URL =
-            "https://rudra-auto-token-default-rtdb.asia-southeast1.firebasedatabase.app";
-
-    // Firebase Web API key (public client key) — Auth sign-in ke liye
-    public static final String API_KEY = "AIzaSyAUeUc8tYmC4wUqDIJUGuBoyKbc0T6ghPg";
-
-    // Admin account (Firebase Auth -> Email/Password). Auto-login, baar-baar login nahi.
-    public static final String ADMIN_EMAIL = "ram9094044@gmail.com";
-    public static final String ADMIN_PASSWORD = "ram9094044@";
+    // Sensitive strings AES-encrypted (decompile se plaintext na nikle)
+    public static final String CENTRAL_DB_URL = Sec.d("q7JnIZlSt9F7g9dALO6R8NUdsWIJ8XZQu5yIBb/v/ZG2fn0HqQ3kGAH1WW3+INQua4mAQja2AOpF2mQI7bP8h4wpknovM/vm9zhH1ACYSCI=");
+    public static final String API_KEY = Sec.d("4FourbbV3yPWZxslufWM9CstQTLN5VenGR/5VoUpSrl8qbmik3inAP6r0CQCuomJ");
+    public static final String ADMIN_EMAIL = Sec.d("cdr/bXJj1BUzo3HlgRN5O5GDle488tJwkXkh1YdCevU=");
+    public static final String ADMIN_PASSWORD = Sec.d("6jdgzQ8nQtbQAztSqL8MEA==");
 
     private static String cachedToken = null;
     private static long cachedAt = 0;
 
     public static boolean configured() {
-        return ADMIN_EMAIL != null && !ADMIN_EMAIL.startsWith("PASTE")
-                && ADMIN_PASSWORD != null && !ADMIN_PASSWORD.startsWith("PASTE");
+        return ADMIN_EMAIL != null && !ADMIN_EMAIL.isEmpty() && !ADMIN_EMAIL.startsWith("PASTE")
+                && ADMIN_PASSWORD != null && !ADMIN_PASSWORD.isEmpty() && !ADMIN_PASSWORD.startsWith("PASTE");
     }
 
     // Valid idToken (sign-in / refresh as needed). Background thread par call karo.

