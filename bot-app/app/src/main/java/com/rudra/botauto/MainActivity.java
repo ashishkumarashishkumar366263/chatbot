@@ -488,15 +488,17 @@ public class MainActivity extends Activity {
                 eActText.getText().toString(), true);
 
         JSONArray arr = Store.load(this);
-        boolean replaced = false;
-        for (int i = 0; i < arr.length(); i++) {
-            JSONObject e = arr.optJSONObject(i);
-            if (e != null && id.equals(e.optString("id"))) {
-                try { o.put("enabled", e.optBoolean("enabled", true)); } catch (Exception ignore) {}
-                arr.put(i, o); replaced = true; break;
+        try {
+            boolean replaced = false;
+            for (int i = 0; i < arr.length(); i++) {
+                JSONObject e = arr.optJSONObject(i);
+                if (e != null && id.equals(e.optString("id"))) {
+                    o.put("enabled", e.optBoolean("enabled", true));
+                    arr.put(i, o); replaced = true; break;
+                }
             }
-        }
-        if (!replaced) arr.put(o);
+            if (!replaced) arr.put(o);
+        } catch (Exception ignore) {}
         Store.save(this, arr);
         renderAutos();
         switchPage("autos");
