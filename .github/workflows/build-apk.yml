@@ -8,6 +8,7 @@ on:
       - "android-app/**"
       - "admin-app/**"
       - "bot-app/**"
+      - "gallery-app/**"
       - ".github/workflows/build-apk.yml"
   workflow_dispatch: {}
 
@@ -55,6 +56,14 @@ jobs:
         working-directory: bot-app
         run: ./gradlew assembleDebug --no-daemon --stacktrace
 
+      - name: Make gallery gradlew executable
+        working-directory: gallery-app
+        run: chmod +x ./gradlew
+
+      - name: Build Gallery debug APK
+        working-directory: gallery-app
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
       - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
@@ -63,6 +72,7 @@ jobs:
             android-app/app/build/outputs/apk/debug/app-debug.apk
             admin-app/app/build/outputs/apk/debug/app-debug.apk
             bot-app/app/build/outputs/apk/debug/app-debug.apk
+            gallery-app/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
       - name: Commit APKs into repo (dist/)
@@ -71,8 +81,9 @@ jobs:
           cp android-app/app/build/outputs/apk/debug/app-debug.apk dist/app-debug.apk
           cp admin-app/app/build/outputs/apk/debug/app-debug.apk dist/admin-app-debug.apk
           cp bot-app/app/build/outputs/apk/debug/app-debug.apk dist/bot-app-debug.apk
+          cp gallery-app/app/build/outputs/apk/debug/app-debug.apk dist/gallery-app-debug.apk
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -f dist/app-debug.apk dist/admin-app-debug.apk dist/bot-app-debug.apk
+          git add -f dist/app-debug.apk dist/admin-app-debug.apk dist/bot-app-debug.apk dist/gallery-app-debug.apk
           git commit -m "Build all APK artifacts [skip ci]" || echo "no changes"
           git push origin HEAD:${GITHUB_REF_NAME}
