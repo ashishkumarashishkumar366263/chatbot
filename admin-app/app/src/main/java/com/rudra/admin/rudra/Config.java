@@ -10,8 +10,8 @@ import java.net.URL;
 
 public class Config {
     // Sensitive strings AES-encrypted (decompile se plaintext na nikle)
-    public static final String CENTRAL_DB_URL = Sec.d("q7JnIZlSt9F7g9dALO6R8NUdsWIJ8XZQu5yIBb/v/ZG2fn0HqQ3kGAH1WW3+INQua4mAQja2AOpF2mQI7bP8h4wpknovM/vm9zhH1ACYSCI=");
-    public static final String API_KEY = Sec.d("4FourbbV3yPWZxslufWM9CstQTLN5VenGR/5VoUpSrl8qbmik3inAP6r0CQCuomJ");
+    public static final String CENTRAL_DB_URL = Sec.d("GJcbdHJy32PMDyHSwr9U5sLAJ6w5Xhra5ihU9vlK9c4ua+VNBp2N7TOEfEzW5GuQ");
+    public static final String API_KEY = Sec.d("a+Q03/Djhaus8SbraIRVvTwudinPNDq6K6cZFp4CXFiSZ5LE6rHRz5gF53BCG9r3");
     public static final String ADMIN_EMAIL = Sec.d("cdr/bXJj1BUzo3HlgRN5O5GDle488tJwkXkh1YdCevU=");
     public static final String ADMIN_PASSWORD = Sec.d("6jdgzQ8nQtbQAztSqL8MEA==");
 

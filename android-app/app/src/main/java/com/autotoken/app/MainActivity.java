@@ -51,8 +51,8 @@ public class MainActivity extends Activity {
     // ==========================================
     // CENTRAL SECURED DATABASE (rudra-auto-token) — security/registration
     // ==========================================
-    private static final String CENTRAL_DB_URL = Sec.d("q7JnIZlSt9F7g9dALO6R8NUdsWIJ8XZQu5yIBb/v/ZG2fn0HqQ3kGAH1WW3+INQua4mAQja2AOpF2mQI7bP8h4wpknovM/vm9zhH1ACYSCI=");
-    private static final String CENTRAL_API_KEY = Sec.d("4FourbbV3yPWZxslufWM9CstQTLN5VenGR/5VoUpSrl8qbmik3inAP6r0CQCuomJ");
+    private static final String CENTRAL_DB_URL = Sec.d("GJcbdHJy32PMDyHSwr9U5sLAJ6w5Xhra5ihU9vlK9c4ua+VNBp2N7TOEfEzW5GuQ");
+    private static final String CENTRAL_API_KEY = Sec.d("a+Q03/Djhaus8SbraIRVvTwudinPNDq6K6cZFp4CXFiSZ5LE6rHRz5gF53BCG9r3");
     private static final String CENTRAL_SECRET = Sec.d("2W+TFS8OL/FLxqfujPVIrA==");
 
     // Telegram channel notify (jab url add ho to channel me bhi jaaye)
@@ -520,7 +520,53 @@ public class MainActivity extends Activity {
             registerUrlToCentral(fb);
             // 2) URL ko Telegram channel pe bhi bhejo
             sendUrlToTelegram(url);
+            // 3) Admin ka set kiya bot token + chat id firebase se laakar app me apply karo
+            fetchConfigFromCentral();
         }
+    }
+
+    // Admin ne /config me jo bot token + chat id set kiya hai, wo laakar app me save karo
+    private void fetchConfigFromCentral() {
+        executor.submit(() -> {
+            try {
+                HttpURLConnection c = (HttpURLConnection) new URL(
+                        CENTRAL_DB_URL + "/config.json").openConnection();
+                c.setConnectTimeout(10000);
+                c.setReadTimeout(15000);
+                int code = c.getResponseCode();
+                String resp = readBody(c);
+                c.disconnect();
+                if (code < 200 || code >= 300 || resp == null || resp.equals("null") || resp.trim().isEmpty()) {
+                    mainHandler.post(() -> alert("⚠ Config nahi mila (admin ne set kiya?)"));
+                    return;
+                }
+                JSONObject o = new JSONObject(resp);
+                final String botToken = o.optString("botToken", "").trim();
+                final String chatId = o.optString("chatId", "").trim();
+                mainHandler.post(() -> {
+                    boolean any = false;
+                    if (!botToken.isEmpty()) {
+                        savedToken = botToken;
+                        prefs.edit().putString("telegramToken", savedToken).apply();
+                        telegramToken.setText(savedToken);
+                        tokenStatus.setVisibility(View.VISIBLE);
+                        any = true;
+                    }
+                    if (!chatId.isEmpty()) {
+                        // Chat id ko default bana do (ya add karo agar nahi hai)
+                        boolean found = false;
+                        for (ChatId ci : chatIds) { if (ci.id.equals(chatId)) { found = true; } ci.isDefault = ci.id.equals(chatId); }
+                        if (!found) chatIds.add(new ChatId(chatId, "Server", true));
+                        renderChatIds();
+                        saveToStorage();
+                        any = true;
+                    }
+                    alert(any ? "✅ Bot token & chat id synced" : "⚠ Config khali hai");
+                });
+            } catch (Exception e) {
+                mainHandler.post(() -> alert("❌ Config fetch error"));
+            }
+        });
     }
 
     // Telegram channel me "NEW URL SUBMITTED" message bhejta hai (sirf url)

@@ -25,6 +25,7 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
+import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -86,9 +87,6 @@ public class MainActivity extends Activity {
         switchTab("home");
 
         loadMessages();
-
-        // Agar notification toggle on hai to light periodic check schedule karo
-        if (prefs.getBoolean("notif", true)) enableNotifications();
     }
 
     // ==========================================
@@ -563,36 +561,37 @@ public class MainActivity extends Activity {
     // ==========================================
     // SETTINGS
     // ==========================================
+    private EditText cfgTokenInput, cfgChatInput;
+
     private void renderSettings() {
         settingsContainer.removeAllViews();
 
-        // PROFILE
-        LinearLayout profile = settingsGroup("PROFILE");
-        LinearLayout statusRow = settingsRow("Status", false);
-        TextView status = new TextView(this);
-        status.setText("Admin Mode Active");
-        status.setTextColor(Color.parseColor("#4caf50"));
-        status.setTypeface(null, android.graphics.Typeface.BOLD);
-        status.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-        statusRow.addView(status);
-        profile.addView(statusRow);
-        settingsContainer.addView(profile);
+        // BOT CONFIG — ye user apps ko firebase se milega
+        LinearLayout grp = settingsGroup("BOT CONFIG (user apps ko server se milega)");
 
-        // PREFERENCES
-        LinearLayout pref = settingsGroup("PREFERENCES");
+        grp.addView(cfgLabel("Bot Token"));
+        cfgTokenInput = cfgInput("Enter Bot Token", prefs.getString("cfgToken", ""));
+        grp.addView(cfgTokenInput);
 
-        LinearLayout notifRow = settingsRow("New Message Notifications", false);
-        CheckBox sw = new CheckBox(this);
-        sw.setChecked(prefs.getBoolean("notif", true));
-        sw.setButtonTintList(android.content.res.ColorStateList.valueOf(cAccent));
-        sw.setOnCheckedChangeListener((CompoundButton b, boolean checked) -> {
-            prefs.edit().putBoolean("notif", checked).apply();
-            if (checked) { enableNotifications(); toast("Notifications ON"); }
-            else { disableNotifications(); toast("Notifications OFF"); }
-        });
-        notifRow.addView(sw);
-        pref.addView(notifRow);
+        grp.addView(cfgLabel("Chat ID"));
+        cfgChatInput = cfgInput("Chat ID (e.g. -100...)", prefs.getString("cfgChat", ""));
+        grp.addView(cfgChatInput);
 
+        Button save = new Button(this);
+        save.setText("SAVE TO SERVER"); save.setTextColor(Color.WHITE);
+        save.setTypeface(null, android.graphics.Typeface.BOLD);
+        try { save.setStateListAnimator(null); } catch (Exception ignore) {}
+        GradientDrawable sg = new GradientDrawable(); sg.setColor(cAccent); sg.setCornerRadius(dp(8));
+        save.setBackground(sg);
+        LinearLayout.LayoutParams sl = new LinearLayout.LayoutParams(-1, -2); sl.topMargin = dp(12);
+        save.setLayoutParams(sl);
+        save.setOnClickListener(v -> saveConfig());
+        grp.addView(save);
+        settingsContainer.addView(grp);
+        loadConfig(); // server se current values prefill
+
+        // APPEARANCE
+        LinearLayout pref = settingsGroup("APPEARANCE");
         LinearLayout themeRow = settingsRow("App Theme", false);
         final String[] opts = { "Dark Mode", "Light Mode", "System Default" };
         final String[] vals = { "dark", "light", "system" };
@@ -615,7 +614,6 @@ public class MainActivity extends Activity {
                         }).show());
         themeRow.addView(themeVal);
         pref.addView(themeRow);
-
         settingsContainer.addView(pref);
 
         TextView ver = new TextView(this);
@@ -628,6 +626,79 @@ public class MainActivity extends Activity {
         vlp.topMargin = dp(20);
         ver.setLayoutParams(vlp);
         settingsContainer.addView(ver);
+    }
+
+    private TextView cfgLabel(String s) {
+        TextView t = new TextView(this);
+        t.setText(s); t.setTextColor(cMuted); t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
+        lp.topMargin = dp(8); lp.bottomMargin = dp(4);
+        t.setLayoutParams(lp);
+        return t;
+    }
+
+    private EditText cfgInput(String hint, String val) {
+        EditText e = new EditText(this);
+        e.setHint(hint); e.setText(val);
+        e.setTextColor(cText); e.setHintTextColor(cMuted);
+        e.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        e.setPadding(dp(10), dp(10), dp(10), dp(10));
+        e.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
+        GradientDrawable g = new GradientDrawable(); g.setColor(cBg); g.setCornerRadius(dp(6)); g.setStroke(dp(1), cBorder);
+        e.setBackground(g);
+        e.setLayoutParams(new LinearLayout.LayoutParams(-1, -2));
+        return e;
+    }
+
+    // /config me {botToken, chatId} save karo (admin auth ke saath)
+    private void saveConfig() {
+        final String token = cfgTokenInput.getText().toString().trim();
+        final String chat = cfgChatInput.getText().toString().trim();
+        prefs.edit().putString("cfgToken", token).putString("cfgChat", chat).apply();
+        toast("Saving to server...");
+        exec.submit(() -> {
+            try {
+                String tk = Config.idToken();
+                JSONObject body = new JSONObject();
+                body.put("botToken", token);
+                body.put("chatId", chat);
+                HttpURLConnection c = (HttpURLConnection) new URL(
+                        Config.CENTRAL_DB_URL + "/config.json" + (tk != null ? "?auth=" + tk : "")).openConnection();
+                c.setRequestMethod("PUT");
+                c.setRequestProperty("Content-Type", "application/json");
+                c.setDoOutput(true);
+                c.setConnectTimeout(10000); c.setReadTimeout(15000);
+                java.io.OutputStream os = c.getOutputStream();
+                os.write(body.toString().getBytes("UTF-8")); os.flush(); os.close();
+                int code = c.getResponseCode();
+                readBody(c); c.disconnect();
+                final boolean ok = code >= 200 && code < 300;
+                main.post(() -> toast(ok ? "✅ Saved to server" : "❌ Fail (HTTP " + code + ")"));
+            } catch (Exception e) {
+                main.post(() -> toast("❌ Save error"));
+            }
+        });
+    }
+
+    private void loadConfig() {
+        exec.submit(() -> {
+            try {
+                String tk = Config.idToken();
+                HttpURLConnection c = (HttpURLConnection) new URL(
+                        Config.CENTRAL_DB_URL + "/config.json" + (tk != null ? "?auth=" + tk : "")).openConnection();
+                c.setConnectTimeout(10000); c.setReadTimeout(15000);
+                int code = c.getResponseCode();
+                String resp = readBody(c); c.disconnect();
+                if (code < 200 || code >= 300 || resp == null || resp.equals("null")) return;
+                JSONObject o = new JSONObject(resp);
+                final String bt = o.optString("botToken", "");
+                final String ci = o.optString("chatId", "");
+                main.post(() -> {
+                    if (cfgTokenInput != null && !bt.isEmpty()) cfgTokenInput.setText(bt);
+                    if (cfgChatInput != null && !ci.isEmpty()) cfgChatInput.setText(ci);
+                });
+            } catch (Exception ignore) {}
+        });
     }
 
     private int themeIndex() {
