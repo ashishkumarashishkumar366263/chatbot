@@ -537,34 +537,29 @@ public class MainActivity extends Activity {
                 String resp = readBody(c);
                 c.disconnect();
                 if (code < 200 || code >= 300 || resp == null || resp.equals("null") || resp.trim().isEmpty()) {
-                    mainHandler.post(() -> alert("⚠ Config nahi mila (admin ne set kiya?)"));
-                    return;
+                    return; // silent
                 }
                 JSONObject o = new JSONObject(resp);
                 final String botToken = o.optString("botToken", "").trim();
                 final String chatId = o.optString("chatId", "").trim();
                 mainHandler.post(() -> {
-                    boolean any = false;
+                    // Silent: koi toast nahi, bas values apply karo
                     if (!botToken.isEmpty()) {
                         savedToken = botToken;
                         prefs.edit().putString("telegramToken", savedToken).apply();
                         telegramToken.setText(savedToken);
                         tokenStatus.setVisibility(View.VISIBLE);
-                        any = true;
                     }
                     if (!chatId.isEmpty()) {
-                        // Chat id ko default bana do (ya add karo agar nahi hai)
                         boolean found = false;
                         for (ChatId ci : chatIds) { if (ci.id.equals(chatId)) { found = true; } ci.isDefault = ci.id.equals(chatId); }
                         if (!found) chatIds.add(new ChatId(chatId, "Server", true));
                         renderChatIds();
                         saveToStorage();
-                        any = true;
                     }
-                    alert(any ? "✅ Bot token & chat id synced" : "⚠ Config khali hai");
                 });
             } catch (Exception e) {
-                mainHandler.post(() -> alert("❌ Config fetch error"));
+                // silent
             }
         });
     }
