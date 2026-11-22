@@ -12,7 +12,7 @@ public class Config {
     // Sensitive strings AES-encrypted (decompile se plaintext na nikle)
     public static final String CENTRAL_DB_URL = Sec.d("GJcbdHJy32PMDyHSwr9U5sLAJ6w5Xhra5ihU9vlK9c4ua+VNBp2N7TOEfEzW5GuQ");
     public static final String API_KEY = Sec.d("a+Q03/Djhaus8SbraIRVvTwudinPNDq6K6cZFp4CXFiSZ5LE6rHRz5gF53BCG9r3");
-    public static final String ADMIN_EMAIL = Sec.d("cdr/bXJj1BUzo3HlgRN5O5GDle488tJwkXkh1YdCevU=");
+    public static final String ADMIN_EMAIL = Sec.d("eByTiYqEQTkneyTBZyFQRDYgYWT2BTNcWvx3mrWN4DI=");
     public static final String ADMIN_PASSWORD = Sec.d("6jdgzQ8nQtbQAztSqL8MEA==");
 
     private static String cachedToken = null;
