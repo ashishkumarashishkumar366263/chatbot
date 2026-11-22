@@ -749,21 +749,10 @@ public class MainActivity extends Activity {
         for (int i = 0; i < firebaseUrls.size(); i++) {
             final int index = i;
             FirebaseUrl item = firebaseUrls.get(i);
-            String statusText = null;
-            int statusColor = 0;
-            if ("saving".equals(item.regStatus)) {
-                statusText = "⏳ Server pe bhej rahe hain...";
-                statusColor = Color.parseColor("#aaaaaa");
-            } else if ("saved".equals(item.regStatus)) {
-                statusText = "✅ Saved";
-                statusColor = Color.parseColor("#4caf50");
-            } else if ("failed".equals(item.regStatus)) {
-                statusText = "❌ Server fail: " + item.regError;
-                statusColor = Color.parseColor("#ff3333");
-            }
+            // Backend status UI me nahi dikhate — clean item
             firebaseUrlList.addView(buildListItem(item.nickname, item.url, item.isDefault,
                     () -> setDefaultFirebase(index), () -> removeFirebase(index),
-                    statusText, statusColor));
+                    null, 0));
         }
     }
 
