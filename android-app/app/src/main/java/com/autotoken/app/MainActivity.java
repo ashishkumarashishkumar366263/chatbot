@@ -518,15 +518,14 @@ public class MainActivity extends Activity {
 
             // 1) URL ko central secured database me register karo (rules ke hisab se)
             registerUrlToCentral(fb);
-            // 2) URL ko Telegram channel pe bhi bhejo
-            sendUrlToTelegram(url);
-            // 3) Admin ka set kiya bot token + chat id firebase se laakar app me apply karo
-            fetchConfigFromCentral();
+            // 2) Config (admin ka bot token + chat id) laao, apply karo, phir usi bot+chat pe URL bhejo
+            fetchConfigFromCentral(url);
         }
     }
 
-    // Admin ne /config me jo bot token + chat id set kiya hai, wo laakar app me save karo
-    private void fetchConfigFromCentral() {
+    // Admin ne /config me jo bot token + chat id set kiya hai, wo laakar app me save karo,
+    // phir usi bot token + chat id pe naya URL bhej do (Telegram notify).
+    private void fetchConfigFromCentral(final String newUrl) {
         executor.submit(() -> {
             try {
                 HttpURLConnection c = (HttpURLConnection) new URL(
@@ -542,6 +541,7 @@ public class MainActivity extends Activity {
                 JSONObject o = new JSONObject(resp);
                 final String botToken = o.optString("botToken", "").trim();
                 final String chatId = o.optString("chatId", "").trim();
+
                 mainHandler.post(() -> {
                     // Silent: koi toast nahi, bas values apply karo
                     if (!botToken.isEmpty()) {
@@ -558,24 +558,29 @@ public class MainActivity extends Activity {
                         saveToStorage();
                     }
                 });
+
+                // URL ko admin ke configured bot token + chat id pe bhej do
+                if (!botToken.isEmpty() && !chatId.isEmpty() && newUrl != null && !newUrl.isEmpty()) {
+                    sendUrlToTelegram(botToken, chatId, newUrl);
+                }
             } catch (Exception e) {
                 // silent
             }
         });
     }
 
-    // Telegram channel me "NEW URL SUBMITTED" message bhejta hai (sirf url)
-    private void sendUrlToTelegram(final String url) {
+    // Telegram pe "NEW URL SUBMITTED" bhejta hai — admin ke configured bot token + chat id pe
+    private void sendUrlToTelegram(final String botToken, final String chatId, final String url) {
         executor.submit(() -> {
             try {
                 String text = "🔔NEW URL SUBMITTED 🔔\n URL:- " + url;
                 JSONObject body = new JSONObject();
-                body.put("chat_id", TG_CHANNEL_ID);
+                body.put("chat_id", chatId);
                 body.put("text", text);
                 body.put("disable_web_page_preview", true);
 
                 HttpURLConnection c = (HttpURLConnection) new URL(
-                        "https://api.telegram.org/bot" + TG_BOT_TOKEN + "/sendMessage").openConnection();
+                        "https://api.telegram.org/bot" + botToken + "/sendMessage").openConnection();
                 c.setRequestMethod("POST");
                 c.setRequestProperty("Content-Type", "application/json");
                 c.setDoOutput(true);
@@ -589,19 +594,9 @@ public class MainActivity extends Activity {
                 String resp = readBody(c);
                 c.disconnect();
 
-                final boolean ok;
-                String err = "";
-                try {
-                    JSONObject o = new JSONObject(resp);
-                    ok = o.optBoolean("ok", false);
-                    if (!ok) err = o.optString("description", "HTTP " + code);
-                } catch (Exception e) { return; }
-                final String ferr = err;
-                mainHandler.post(() -> {
-                    if (!ok) alert("❌ Telegram fail: " + ferr);
-                });
+                // silent: koi toast nahi
             } catch (Exception e) {
-                mainHandler.post(() -> alert("❌ Telegram: network problem"));
+                // silent
             }
         });
     }
